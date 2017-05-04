@@ -1,7 +1,6 @@
 package com.hnkuan.controller;
 
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -46,15 +45,15 @@ public class LogController {
    * @return A unique list of files in log directory.
    */
   @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-  public Set<URI> listDirectory() throws IOException {
+  public Set<String> listDirectory() throws IOException {
     final Path filePath = Paths.get(directory);
 
-    final Function<Path, URI> filePathToHttpURI = path -> {
+    final Function<Path, String> filePathToHttpURI = path -> {
       final String fileName = path.getFileName().toString();
       return ServletUriComponentsBuilder.fromCurrentRequestUri()
           .pathSegment(fileName)
           .build()
-          .toUri();
+          .toUriString();
     };
 
     //Auto-close path stream to avoid memory leak
