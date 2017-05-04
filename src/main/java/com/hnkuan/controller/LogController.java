@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.CacheControl;
@@ -40,23 +41,6 @@ public class LogController {
   }
 
   /**
-   * Download log file.
-   *
-   * @param pFileName The log file name.
-   * @return The log file.
-   */
-  @GetMapping(value = "{file_name:.+}", produces = MediaType.ALL_VALUE)
-  public ResponseEntity<FileSystemResource> downloadFile(
-      @PathVariable("file_name") String pFileName) {
-    final Path filePath = Paths.get(directory, pFileName);
-    final FileSystemResource fileSystemResource = new FileSystemResource(filePath.toFile());
-    return ResponseEntity.ok()
-        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + pFileName + "\"")
-        .cacheControl(CacheControl.noCache())
-        .body(fileSystemResource);
-  }
-
-  /**
    * List files available in log directory.
    *
    * @return A unique list of files in log directory.
@@ -73,8 +57,29 @@ public class LogController {
           .toUri();
     };
 
-    return Files.list(filePath)
-        .map(filePathToHttpURI)
-        .collect(Collectors.toCollection(TreeSet::new));
+    //Auto-close path stream to avoid memory leak
+    try (Stream<Path> pathStream = Files.list(filePath)) {
+      return pathStream.filter(Files::isRegularFile)
+          .map(filePathToHttpURI)
+          .collect(Collectors.toCollection(TreeSet::new));
+    }
+  }
+
+  /**
+   * Download log file.
+   *
+   * @param pFileName The log file name.
+   * @return The log file.
+   */
+  @GetMapping(value = "{file_name:.+}", produces = MediaType.ALL_VALUE)
+  public ResponseEntity<FileSystemResource> downloadFile(
+      @PathVariable("file_name") String pFileName) {
+    final Path filePath = Paths.get(directory, pFileName);
+    final FileSystemResource fileSystemResource = new FileSystemResource(filePath.toFile());
+
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + pFileName + "\"")
+        .cacheControl(CacheControl.noCache())
+        .body(fileSystemResource);
   }
 }
